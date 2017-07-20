@@ -31,7 +31,6 @@ def get_url(**kwargs):
     """
     return '{0}?{1}'.format(_url, urlencode(kwargs))
 
-
 def get_categories():
     """
     Get the list of video categories.
@@ -59,6 +58,7 @@ def get_categories():
         except KeyError:
             pass
 
+    cat.append({'name':'Series', 'url':'series'})
     cat.append({'name':'Search', 'url':'search'})
     return cat
 
@@ -82,8 +82,11 @@ def get_videos(category):
         kb.doModal()
         if not kb.isConfirmed():
             vid = []
+            return vid
         query = kb.getText().replace(' ', '+')
         url = HOME_PAGE + '/movie/search/' + query
+    elif category == 'series':
+        url = HOME_PAGE + '/movie/filter/series'
     else:
         url = HOME_PAGE + '/genre/' + category
 
@@ -140,15 +143,13 @@ def list_videos(category):
     videos = get_videos(category)
     # Iterate through videos.
     for video in videos:
+        list_item = xbmcgui.ListItem(label=video['name'])
+        list_item.setInfo('video', {'title': video['name']})
         if 'mid' not in video:
             # for next page
-            list_item = xbmcgui.ListItem(label=video['name'])
-            list_item.setInfo('video', {'title': video['name']})
             is_folder = True
             url = get_url(action='listing', category=video['url'])
         else:
-            list_item = xbmcgui.ListItem(label=video['name'])
-            list_item.setInfo('video', {'title': video['name']})
             list_item.setArt({'thumb': video['thumb'], 'fanart':video['fanart'], 'icon': video['thumb']})
             list_item.setProperty('IsPlayable', 'true')
             # Create a URL for a plugin recursive call.
