@@ -180,7 +180,13 @@ def get_links(mid):
         res = json.loads(ajax)
         try:
             url = res['playlist'][0]['sources'][0]['file']
-            videolink.append({'name':link['title'], 'url':url})
+            v = {'name':link['title'], 'url':url}
+            try:
+                sub = res['playlist'][0]['tracks'][0]['file']
+                v['sub'] = sub
+            except IndexError:
+                pass
+            videolink.append(v)
         except TypeError:
             pass
         except IndexError:
@@ -192,6 +198,8 @@ def list_links(mid):
     for v in videolink:
         list_item = xbmcgui.ListItem(label=v['name'])
         list_item.setInfo('video', {'title': v['name']})
+        if 'sub' in v:
+            list_item.setSubtitles([v['sub']])
         list_item.setProperty('IsPlayable', 'true')
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=play&video=21234
