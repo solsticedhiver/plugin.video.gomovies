@@ -53,7 +53,7 @@ def get_categories():
     for a in bs.find_all('a'):
         try:
             if '/genre/' in a['href'] and 'title' not in a.attrs:
-                url = a['href'].split('/')[-2].lower().replace(' ', '-') + '/'
+                url = a['href'].replace(HOME_PAGE, '')
                 cat.append({'name':a.text,'url':url})
         except KeyError:
             pass
@@ -88,7 +88,7 @@ def get_videos(category):
     elif category == 'series':
         url = HOME_PAGE + '/movie/filter/series'
     else:
-        url = HOME_PAGE + '/genre/' + category
+        url = HOME_PAGE + category
 
     headers = {'User-Agent': 'Fake'}
     req = urllib2.Request(url, None, headers)
@@ -106,7 +106,7 @@ def get_videos(category):
     # next page
     n = bs.find('a', rel='next')
     if n is not None:
-        vid.append({'name':'Next', 'url':'/'+'/'.join(n['href'].split('/')[-2:])})
+        vid.append({'name':'Next', 'url':n['href'].replace(HOME_PAGE, '')})
     return vid
 
 def list_categories():
@@ -122,7 +122,6 @@ def list_categories():
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
         url = get_url(action='listing', category=category['url'])
-        # is_folder = True means that this item opens a sub-list of lower level items.
         is_folder = True
         # Add our item to the Kodi virtual folder listing.
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
@@ -145,29 +144,20 @@ def list_videos(category):
     for video in videos:
         list_item = xbmcgui.ListItem(label=video['name'])
         list_item.setInfo('video', {'title': video['name']})
+        is_folder = True
         if 'mid' not in video:
             # for next page
-            is_folder = True
             url = get_url(action='listing', category=video['url'])
         else:
             list_item.setArt({'thumb': video['thumb'], 'fanart':video['fanart'], 'icon': video['thumb']})
-            list_item.setProperty('IsPlayable', 'true')
             # Create a URL for a plugin recursive call.
-            # Example: plugin://plugin.video.example/?action=play&video=http://www.vidsplay.com/wp-content/uploads/2017/04/crab.mp4
-            url = get_url(action='play', video=video['mid'])
-            is_folder = False
+            # Example: plugin://plugin.video.example/?action=play&video=21234
+            url = get_url(action='listing', video=video['mid'])
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
-
-def play_video(mid):
-    """
-    Play a video by the provided path.
-
-    :param path: Fully-qualified video URL
-    :type path: str
-    """
+def get_links(mid):
     # get url
     headers = {'User-Agent': 'Fake'}
     url = HOME_PAGE+'/ajax/movie_episodes/'+mid
@@ -175,26 +165,53 @@ def play_video(mid):
     ajax = urllib2.urlopen(req)
     res = json.loads(ajax.read())
     bs = BeautifulSoup(res['html'], 'html.parser')
-    a = bs.find_all('a')
-    data_id = a[0]['data-id']
+    a = bs.find(class_='les-content').find_all('a')
+    videolink = []
+    for link in a:
+        data_id = link['data-id']
 
-    url = HOME_PAGE+'/ajax/movie_token?eid=%s&mid=%s' % (data_id, mid)
-    req = urllib2.Request(url, None, headers)
-    ajax = urllib2.urlopen(req).read()
-    ajax = ajax.replace(', ','&').replace('_','').replace(';','').replace("'", '')
-    url = HOME_PAGE+'/ajax/movie_sources/%s?%s' % (data_id, ajax)
-    req = urllib2.Request(url, None, headers)
-    ajax = urllib2.urlopen(req).read()
-    res = json.loads(ajax)
-    try:
-        url = res['playlist'][0]['sources'][0]['file']
-    except TypeError:
-        url = ''
+        url = HOME_PAGE+'/ajax/movie_token?eid=%s&mid=%s' % (data_id, mid)
+        req = urllib2.Request(url, None, headers)
+        ajax = urllib2.urlopen(req).read()
+        ajax = ajax.replace(', ','&').replace('_','').replace(';','').replace("'", '')
+        url = HOME_PAGE+'/ajax/movie_sources/%s?%s' % (data_id, ajax)
+        req = urllib2.Request(url, None, headers)
+        ajax = urllib2.urlopen(req).read()
+        res = json.loads(ajax)
+        try:
+            url = res['playlist'][0]['sources'][0]['file']
+            videolink.append({'name':link['title'], 'url':url})
+        except TypeError:
+            pass
+        except IndexError:
+            pass
+    return videolink
+
+def list_links(mid):
+    videolink = get_links(mid)
+    for v in videolink:
+        list_item = xbmcgui.ListItem(label=v['name'])
+        list_item.setInfo('video', {'title': v['name']})
+        list_item.setProperty('IsPlayable', 'true')
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=play&video=21234
+        url = get_url(action='play', video=v['url'])
+        is_folder = False
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
+
+def play_video(path):
+    """
+    Play a video by the provided path.
+
+    :param path: Fully-qualified video URL
+    :type path: str
+    """
     # Create a playable item with a path to play.
-    play_item = xbmcgui.ListItem(path=url)
+    play_item = xbmcgui.ListItem(path=path)
     # Pass the item to the Kodi player.
     xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
-
 
 def router(paramstring):
     """
@@ -211,7 +228,10 @@ def router(paramstring):
     if params:
         if params['action'] == 'listing':
             # Display the list of videos in a provided category.
-            list_videos(params['category'])
+            if 'category' in params:
+                list_videos(params['category'])
+            elif 'video' in params:
+                list_links(params['video'])
         elif params['action'] == 'play':
             # Play a video from a provided URL.
             play_video(params['video'])
