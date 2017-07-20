@@ -19,6 +19,7 @@ _url = sys.argv[0]
 _handle = int(sys.argv[1])
 
 HOME_PAGE = 'https://gostream.is'
+UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/59.0.3071.109 Chrome/59.0.3071.109 Safari/537.36'
 
 def get_url(**kwargs):
     """
@@ -45,7 +46,7 @@ def get_categories():
     :return: The list of video categories
     :rtype: list
     """
-    headers = {'User-Agent': 'Fake'}
+    headers = {'User-Agent': UA}
     req = urllib2.Request(HOME_PAGE, None, headers)
     home = urllib2.urlopen(req)
     bs = BeautifulSoup(home.read(), 'html.parser')
@@ -61,6 +62,27 @@ def get_categories():
     cat.append({'name':'Series', 'url':'series'})
     cat.append({'name':'Search', 'url':'search'})
     return cat
+
+def list_categories():
+    """
+    Create the list of video categories in the Kodi interface.
+    """
+    # Get video categories
+    categories = get_categories()
+    # Iterate through categories
+    for category in categories:
+        list_item = xbmcgui.ListItem(label=category['name'])
+        list_item.setInfo('video', {'title': category['name'], 'genre': category['name']})
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='listing', category=category['url'])
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    #xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
 
 def get_videos(category):
     """
@@ -90,7 +112,7 @@ def get_videos(category):
     else:
         url = HOME_PAGE + category
 
-    headers = {'User-Agent': 'Fake'}
+    headers = {'User-Agent': UA}
     req = urllib2.Request(url, None, headers)
     page = urllib2.urlopen(req).read()
     bs = BeautifulSoup(page, 'html.parser')
@@ -114,28 +136,6 @@ def get_videos(category):
     if n is not None:
         vid.append({'name':'Next', 'url':n['href'].replace(HOME_PAGE, '')})
     return vid
-
-def list_categories():
-    """
-    Create the list of video categories in the Kodi interface.
-    """
-    # Get video categories
-    categories = get_categories()
-    # Iterate through categories
-    for category in categories:
-        list_item = xbmcgui.ListItem(label=category['name'])
-        list_item.setInfo('video', {'title': category['name'], 'genre': category['name']})
-        # Create a URL for a plugin recursive call.
-        # Example: plugin://plugin.video.example/?action=listing&category=Animals
-        url = get_url(action='listing', category=category['url'])
-        is_folder = True
-        # Add our item to the Kodi virtual folder listing.
-        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
-    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
-    #xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
-    # Finish creating a virtual folder.
-    xbmcplugin.endOfDirectory(_handle)
-
 
 def list_videos(category):
     """
@@ -165,7 +165,7 @@ def list_videos(category):
 
 def get_links(mid):
     # get url
-    headers = {'User-Agent': 'Fake'}
+    headers = {'User-Agent': UA}
     url = HOME_PAGE+'/ajax/movie_episodes/'+mid
     req = urllib2.Request(url, None, headers)
     ajax = urllib2.urlopen(req)
@@ -186,7 +186,8 @@ def get_links(mid):
         res = json.loads(ajax)
         try:
             url = res['playlist'][0]['sources'][0]['file']
-            v = {'name':link['title'], 'url':url}
+            mtype = res['playlist'][0]['sources'][0]['type']
+            v = {'name':link['title'], 'url':url, 'type':mtype}
             try:
                 sub = res['playlist'][0]['tracks'][0]['file']
                 v['sub'] = sub
@@ -207,9 +208,12 @@ def list_links(mid):
         if 'sub' in v:
             list_item.setSubtitles([v['sub']])
         list_item.setProperty('IsPlayable', 'true')
+        list_item.setMimeType(v['type'])
+        list_item.setContentLookup(False)
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=play&video=21234
-        url = get_url(action='play', video=v['url'])
+        headers = '|User-Agent=%s&Referer=%s' % (UA, HOME_PAGE)
+        url = get_url(action='play', video=v['url']+headers)
         is_folder = False
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     # Finish creating a virtual folder.
