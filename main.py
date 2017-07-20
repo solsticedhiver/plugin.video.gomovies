@@ -100,8 +100,14 @@ def get_videos(category):
         thumb  = a.img['data-original']
         mid = a['data-url'].split('/')[-1]
         name = a['title']+' ['+quality.string+']' if quality else a['title']
+        # plot
+        req = urllib2.Request(a['data-url'], None, headers)
+        ajax = urllib2.urlopen(req).read()
+        bs = BeautifulSoup(ajax, 'html.parser', from_encoding='utf-8')
+        plot = bs.find(class_='f-desc').string
 
-        vid.append({'mid':mid, 'thumb':thumb, 'name':name, 'fanart':thumb.replace('/poster/','/cover/')})
+        vid.append({'mid':mid, 'thumb':thumb, 'name':name, 'fanart':thumb.replace('/poster/','/cover/'),
+            'plot':plot})
 
     # next page
     n = bs.find('a', rel='next')
@@ -143,7 +149,7 @@ def list_videos(category):
     # Iterate through videos.
     for video in videos:
         list_item = xbmcgui.ListItem(label=video['name'])
-        list_item.setInfo('video', {'title': video['name']})
+        list_item.setInfo('video', {'title': video['name'], 'plot':video['plot']})
         is_folder = True
         if 'mid' not in video:
             # for next page

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.gomovies" name="GoMovies" version="0.0.2" provider-name="solsTiCe d'Hiver">
+<addon id="plugin.video.gomovies" name="GoMovies" version="0.0.3" provider-name="solsTiCe d'Hiver">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.beautifulsoup4" version="4.5.3"/>
@@ -18,7 +18,8 @@
     <website>https://github.com/solsticedhiver/plugin.video.gomovies</website>
     <email>solstice.dhiver@gmail.com</email>
     <source>https://github.com/solsticedhiver/plugin.video.gomovies</source>
-    <news>List link for each video</news>
+    <news>Add a plot summary for every video
+  List link for each video</news>
     <assets>
         <icon>icon.png</icon>
         <fanart></fanart>
