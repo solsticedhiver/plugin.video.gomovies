@@ -165,40 +165,23 @@ def list_videos(category):
     xbmcplugin.endOfDirectory(_handle)
 
 def get_links(mid):
-    # get url
+    # gather id of each link for each server
     headers = {'User-Agent': UA}
     url = HOME_PAGE+'/ajax/movie_episodes/'+mid
     req = urllib2.Request(url, None, headers)
     ajax = urllib2.urlopen(req)
     res = json.loads(ajax.read())
     bs = BeautifulSoup(res['html'], 'html.parser')
-    a = bs.find(class_='les-content').find_all('a')
-    videolink = []
-    for link in a:
-        data_id = link['data-id']
-
-        url = HOME_PAGE+'/ajax/movie_token?eid=%s&mid=%s' % (data_id, mid)
-        req = urllib2.Request(url, None, headers)
-        ajax = urllib2.urlopen(req).read()
-        ajax = ajax.replace(', ','&').replace('_','').replace(';','').replace("'", '')
-        url = HOME_PAGE+'/ajax/movie_sources/%s?%s' % (data_id, ajax)
-        req = urllib2.Request(url, None, headers)
-        ajax = urllib2.urlopen(req).read()
-        res = json.loads(ajax)
-        try:
-            url = res['playlist'][0]['sources'][0]['file']
-            mtype = res['playlist'][0]['sources'][0]['type']
-            v = {'name':link['title'], 'url':url, 'type':mtype}
-            try:
-                sub = res['playlist'][0]['tracks'][0]['file']
-                v['sub'] = sub
-            except IndexError:
-                pass
-            videolink.append(v)
-        except TypeError:
-            pass
-        except IndexError:
-            pass
+    length = len(bs.find(class_='les-content').find_all('a'))
+    videolink = [None]*length
+    for div in bs.find_all(class_='les-content'):
+        for a in div.find_all('a'):
+            data_id = a['data-id']
+            indx = int(a['data-index'])
+            if videolink[indx] is None:
+                videolink[indx] = {'ids':[]}
+            videolink[indx]['name'] = a['title']
+            videolink[indx]['ids'].append(data_id)
     return videolink
 
 def list_links(mid):
@@ -206,29 +189,59 @@ def list_links(mid):
     for v in videolink:
         list_item = xbmcgui.ListItem(label=v['name'])
         list_item.setInfo('video', {'title': v['name']})
-        if 'sub' in v:
-            list_item.setSubtitles([v['sub']])
         list_item.setProperty('IsPlayable', 'true')
-        list_item.setMimeType(v['type'])
-        list_item.setContentLookup(False)
         # Create a URL for a plugin recursive call.
-        # Example: plugin://plugin.video.example/?action=play&video=21234
-        headers = '|User-Agent=%s&Referer=%s' % (UA, HOME_PAGE)
-        url = get_url(action='play', video=v['url']+headers)
+        # Example: plugin://plugin.video.example/?action=play&ids=64534%2C65345&mid=21704
+        url = get_url(action='play', ids=','.join(v['ids']), mid=mid)
         is_folder = False
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
-def play_video(path):
+def play_video(ids, mid):
     """
     Play a video by the provided path.
 
     :param path: Fully-qualified video URL
     :type path: str
     """
-    # Create a playable item with a path to play.
-    play_item = xbmcgui.ListItem(path=path)
+    ids = ids.split(',')
+    headers = {'User-Agent': UA}
+    play_item = xbmcgui.ListItem()
+    for data_id in ids:
+        url = HOME_PAGE+'/ajax/movie_token?eid=%s&mid=%s' % (data_id, mid)
+        req = urllib2.Request(url, None, headers)
+        ajax = urllib2.urlopen(req).read()
+        ajax = ajax.replace(', ','&').replace('_','').replace(';','').replace("'", '')
+        url = HOME_PAGE+'/ajax/movie_sources/%s?%s' % (data_id, ajax)
+        try:
+            req = urllib2.Request(url, None, headers)
+            ajax = urllib2.urlopen(req).read()
+            if ajax == '': continue
+            res = json.loads(ajax)
+            try:
+                path = res['playlist'][0]['sources'][0]['file']
+                # try to open it
+                req = urllib2.Request(path, None, headers)
+                video = urllib2.urlopen(req)
+                video.close()
+                play_item.setPath(path)
+                # Create a playable item with a path to play.
+                mtype = res['playlist'][0]['sources'][0]['type']
+                if mtype == 'mp4': mtype = 'video/mp4'
+                play_item.setMimeType(mtype)
+                try:
+                    sub = res['playlist'][0]['tracks'][0]['file']
+                    play_item.setSubtitles([sub])
+                except IndexError:
+                    pass
+                break
+            except TypeError:
+                pass
+            except IndexError:
+                pass
+        except urllib2.HTTPError:
+            continue
     # Pass the item to the Kodi player.
     xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
 
@@ -253,7 +266,7 @@ def router(paramstring):
                 list_links(params['video'])
         elif params['action'] == 'play':
             # Play a video from a provided URL.
-            play_video(params['video'])
+            play_video(params['ids'], params['mid'])
         else:
             # If the provided paramstring does not contain a supported action
             # we raise an exception. This helps to catch coding errors,
