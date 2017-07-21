@@ -12,7 +12,9 @@ import xbmcgui
 import xbmcplugin
 from bs4 import BeautifulSoup
 import json
+import simplecache
 
+_cache = simplecache.SimpleCache()
 # Get the plugin url in plugin:// notation.
 _url = sys.argv[0]
 # Get the plugin handle as an integer number.
@@ -72,7 +74,7 @@ def list_categories():
     # Iterate through categories
     for category in categories:
         list_item = xbmcgui.ListItem(label=category['name'])
-        list_item.setInfo('video', {'title': category['name'], 'genre': category['name']})
+        list_item.setInfo('video', {'title': category['name']})
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
         url = get_url(action='listing', category=category['url'])
@@ -117,19 +119,28 @@ def get_videos(category):
     page = urllib2.urlopen(req).read()
     bs = BeautifulSoup(page, 'html.parser')
     vid = []
-    for a in bs.find_all('div', class_="movies-list movies-list-full")[0].find_all('a'):
+    for a in bs.find('div', class_="movies-list movies-list-full").find_all('a'):
         quality = a.find('span', class_='mli-quality')
         thumb  = a.img['data-original']
         mid = a['data-url'].split('/')[-1]
         name = a['title']+' ['+quality.string+']' if quality else a['title']
-        # plot
-        req = urllib2.Request(a['data-url'], None, headers)
-        ajax = urllib2.urlopen(req).read()
-        p = BeautifulSoup(ajax, 'html.parser', from_encoding='utf-8')
-        plot = p.find(class_='f-desc').string
+        #try the cache
+        data = _cache.get('gomovies.%s' % mid)
+        if data:
+            vid.append({'name':data['name'], 'mid':mid, 'thumb':data['thumb'], 'fanart':data['fanart'],
+                'plot':data['plot']})
+        else:
+            # plot
+            req = urllib2.Request(a['data-url'], None, headers)
+            ajax = urllib2.urlopen(req).read()
+            p = BeautifulSoup(ajax, 'html.parser', from_encoding='utf-8')
+            plot = p.find(class_='f-desc').string
+            # cache data
+            data = {'name':name, 'thumb': thumb, 'fanart':thumb.replace('/poster/','/cover/'), 'plot':plot}
+            _cache.set('gomovies.%s' % mid, data)
 
-        vid.append({'name':name, 'mid':mid, 'thumb':thumb, 'fanart':thumb.replace('/poster/','/cover/'),
-            'plot':plot})
+            vid.append({'name':name, 'mid':mid, 'thumb':thumb, 'fanart':thumb.replace('/poster/','/cover/'),
+                'plot':plot})
 
     # next page
     n = bs.find('a', rel='next')
@@ -242,6 +253,9 @@ def play_video(ids, mid):
                 pass
         except urllib2.HTTPError:
             continue
+    data = _cache.get('gomovies.%s' % mid)
+    play_item.setInfo('video', {'title': data['name'], 'plot':data['plot']})
+    play_item.setArt({'thumb': data['thumb'], 'fanart':data['fanart'], 'icon': data['thumb']})
     # Pass the item to the Kodi player.
     xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
 
