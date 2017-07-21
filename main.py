@@ -125,10 +125,10 @@ def get_videos(category):
         # plot
         req = urllib2.Request(a['data-url'], None, headers)
         ajax = urllib2.urlopen(req).read()
-        bs = BeautifulSoup(ajax, 'html.parser', from_encoding='utf-8')
-        plot = bs.find(class_='f-desc').string
+        p = BeautifulSoup(ajax, 'html.parser', from_encoding='utf-8')
+        plot = p.find(class_='f-desc').string
 
-        vid.append({'mid':mid, 'thumb':thumb, 'name':name, 'fanart':thumb.replace('/poster/','/cover/'),
+        vid.append({'name':name, 'mid':mid, 'thumb':thumb, 'fanart':thumb.replace('/poster/','/cover/'),
             'plot':plot})
 
     # next page
@@ -149,12 +149,13 @@ def list_videos(category):
     # Iterate through videos.
     for video in videos:
         list_item = xbmcgui.ListItem(label=video['name'])
-        list_item.setInfo('video', {'title': video['name'], 'plot':video['plot']})
         is_folder = True
         if 'mid' not in video:
             # for next page
+            list_item.setInfo('video', {'title': video['name']})
             url = get_url(action='listing', category=video['url'])
         else:
+            list_item.setInfo('video', {'title': video['name'], 'plot':video['plot']})
             list_item.setArt({'thumb': video['thumb'], 'fanart':video['fanart'], 'icon': video['thumb']})
             # Create a URL for a plugin recursive call.
             # Example: plugin://plugin.video.example/?action=play&video=21234
