@@ -22,6 +22,7 @@ _handle = int(sys.argv[1])
 
 HOME_PAGE = 'https://gostream.is'
 UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/59.0.3071.109 Chrome/59.0.3071.109 Safari/537.36'
+APP_ID = 'plugin.video.gomovies'
 
 def get_url(**kwargs):
     """
@@ -124,8 +125,8 @@ def get_videos(category):
         thumb  = a.img['data-original']
         mid = a['data-url'].split('/')[-1]
         name = a['title']+' ['+quality.string+']' if quality else a['title']
-        #try the cache
-        data = _cache.get('gomovies.%s' % mid)
+        # try the cache
+        data = _cache.get('%s.%s' % (APP_ID, mid))
         if data:
             vid.append({'name':data['name'], 'mid':mid, 'thumb':data['thumb'], 'fanart':data['fanart'],
                 'plot':data['plot']})
@@ -137,7 +138,7 @@ def get_videos(category):
             plot = p.find(class_='f-desc').string
             # cache data
             data = {'name':name, 'thumb': thumb, 'fanart':thumb.replace('/poster/','/cover/'), 'plot':plot}
-            _cache.set('gomovies.%s' % mid, data)
+            _cache.set('%s.%s' % (APP_ID, mid), data)
 
             vid.append({'name':name, 'mid':mid, 'thumb':thumb, 'fanart':thumb.replace('/poster/','/cover/'),
                 'plot':plot})
@@ -253,7 +254,7 @@ def play_video(ids, mid):
                 pass
         except urllib2.HTTPError:
             continue
-    data = _cache.get('gomovies.%s' % mid)
+    data = _cache.get('%s.%s' % (APP_ID, mid))
     play_item.setInfo('video', {'title': data['name'], 'plot':data['plot']})
     play_item.setArt({'thumb': data['thumb'], 'fanart':data['fanart'], 'icon': data['thumb']})
     # Pass the item to the Kodi player.
