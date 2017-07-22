@@ -35,18 +35,18 @@ def get_url(**kwargs):
     """
     return '{0}?{1}'.format(_url, urlencode(kwargs))
 
-def get_categories():
+def get_genres():
     """
-    Get the list of video categories.
+    Get the list of video genres.
 
     Here you can insert some parsing code that retrieves
-    the list of video categories (e.g. 'Movies', 'TV-shows', 'Documentaries' etc.)
+    the list of video genres (e.g. 'Movies', 'TV-shows', 'Documentaries' etc.)
     from some site or server.
 
     .. note:: Consider using `generator functions <https://wiki.python.org/moin/Generators>`_
     instead of returning lists.
 
-    :return: The list of video categories
+    :return: The list of video genres
     :rtype: list
     """
     headers = {'User-Agent': UA}
@@ -66,43 +66,41 @@ def get_categories():
     cat.append({'name':'Search', 'url':'search'})
     return cat
 
-def list_categories():
+def list_genres():
     """
-    Create the list of video categories in the Kodi interface.
+    Create the list of video genres in the Kodi interface.
     """
-    # Get video categories
-    categories = get_categories()
-    # Iterate through categories
-    for category in categories:
-        list_item = xbmcgui.ListItem(label=category['name'])
-        list_item.setInfo('video', {'title': category['name']})
+    # Get video genres
+    genres = get_genres()
+    # Iterate through genres
+    for genre in genres:
+        list_item = xbmcgui.ListItem(label=genre['name'])
+        list_item.setInfo('video', {'title': genre['name']})
         # Create a URL for a plugin recursive call.
-        # Example: plugin://plugin.video.example/?action=listing&category=Animals
-        url = get_url(action='listing', category=category['url'])
+        # Example: plugin://plugin.video.example/?action=listing&genre=Animals
+        url = get_url(action='listing', genre=genre['url'])
         is_folder = True
         # Add our item to the Kodi virtual folder listing.
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
-    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
-    #xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
-def get_videos(category):
+def get_videos(genre):
     """
     Get the list of videofiles/streams.
 
     Here you can insert some parsing code that retrieves
-    the list of video streams in the given category from some site or server.
+    the list of video streams in the given genre from some site or server.
 
     .. note:: Consider using `generators functions <https://wiki.python.org/moin/Generators>`_
     instead of returning lists.
 
-    :param category: Category name
-    :type category: str
-    :return: the list of videos in the category
+    :param genre: Genre name
+    :type genre: str
+    :return: the list of videos in the genre
     :rtype: list
     """
-    if category == 'search':
+    if genre == 'search':
         kb = xbmc.Keyboard('', 'Please enter the video title')
         kb.doModal()
         if not kb.isConfirmed():
@@ -110,10 +108,10 @@ def get_videos(category):
             return vid
         query = kb.getText().replace(' ', '+')
         url = HOME_PAGE + '/movie/search/' + query
-    elif category == 'series':
+    elif genre == 'series':
         url = HOME_PAGE + '/movie/filter/series'
     else:
-        url = HOME_PAGE + category
+        url = HOME_PAGE + genre
 
     headers = {'User-Agent': UA}
     req = urllib2.Request(url, None, headers)
@@ -149,15 +147,15 @@ def get_videos(category):
         vid.append({'name':'Next', 'url':n['href'].replace(HOME_PAGE, '')})
     return vid
 
-def list_videos(category):
+def list_videos(genre):
     """
     Create the list of playable videos in the Kodi interface.
 
-    :param category: Category name
-    :type category: str
+    :param genre: Category name
+    :type genre: str
     """
-    # Get the list of videos in the category.
-    videos = get_videos(category)
+    # Get the list of videos in the genre.
+    videos = get_videos(genre)
     # Iterate through videos.
     for video in videos:
         list_item = xbmcgui.ListItem(label=video['name'])
@@ -165,7 +163,7 @@ def list_videos(category):
         if 'mid' not in video:
             # for next page
             list_item.setInfo('video', {'title': video['name']})
-            url = get_url(action='listing', category=video['url'])
+            url = get_url(action='listing', genre=video['url'])
         else:
             list_item.setInfo('video', {'title': video['name'], 'plot':video['plot']})
             list_item.setArt({'thumb': video['thumb'], 'fanart':video['fanart'], 'icon': video['thumb']})
@@ -274,9 +272,9 @@ def router(paramstring):
     # Check the parameters passed to the plugin
     if params:
         if params['action'] == 'listing':
-            # Display the list of videos in a provided category.
-            if 'category' in params:
-                list_videos(params['category'])
+            # Display the list of videos in a provided genre.
+            if 'genre' in params:
+                list_videos(params['genre'])
             elif 'video' in params:
                 list_links(params['video'])
         elif params['action'] == 'play':
@@ -289,8 +287,8 @@ def router(paramstring):
             raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
     else:
         # If the plugin is called from Kodi UI without any parameters,
-        # display the list of video categories
-        list_categories()
+        # display the list of video genres
+        list_genres()
 
 
 if __name__ == '__main__':
