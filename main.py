@@ -20,9 +20,10 @@ _url = sys.argv[0]
 # Get the plugin handle as an integer number.
 _handle = int(sys.argv[1])
 
+APP_ID = 'plugin.video.gomovies'
 HOME_PAGE = 'https://gostream.is'
 UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/59.0.3071.109 Chrome/59.0.3071.109 Safari/537.36'
-APP_ID = 'plugin.video.gomovies'
+HEADERS = {'User-Agent': UA}
 
 def get_url(**kwargs):
     """
@@ -39,18 +40,10 @@ def get_genres():
     """
     Get the list of video genres.
 
-    Here you can insert some parsing code that retrieves
-    the list of video genres (e.g. 'Movies', 'TV-shows', 'Documentaries' etc.)
-    from some site or server.
-
-    .. note:: Consider using `generator functions <https://wiki.python.org/moin/Generators>`_
-    instead of returning lists.
-
     :return: The list of video genres
     :rtype: list
     """
-    headers = {'User-Agent': UA}
-    req = urllib2.Request(HOME_PAGE, None, headers)
+    req = urllib2.Request(HOME_PAGE, None, HEADERS)
     home = urllib2.urlopen(req)
     bs = BeautifulSoup(home.read(), 'html.parser')
     cat = []
@@ -89,19 +82,13 @@ def get_videos(genre):
     """
     Get the list of videofiles/streams.
 
-    Here you can insert some parsing code that retrieves
-    the list of video streams in the given genre from some site or server.
-
-    .. note:: Consider using `generators functions <https://wiki.python.org/moin/Generators>`_
-    instead of returning lists.
-
     :param genre: Genre name
     :type genre: str
     :return: the list of videos in the genre
     :rtype: list
     """
     if genre == 'search':
-        kb = xbmc.Keyboard('', 'Please enter the video title')
+        kb = xbmc.Keyboard('', 'Please enter your search')
         kb.doModal()
         if not kb.isConfirmed():
             vid = []
@@ -113,8 +100,7 @@ def get_videos(genre):
     else:
         url = HOME_PAGE + genre
 
-    headers = {'User-Agent': UA}
-    req = urllib2.Request(url, None, headers)
+    req = urllib2.Request(url, None, HEADERS)
     page = urllib2.urlopen(req).read()
     bs = BeautifulSoup(page, 'html.parser')
     vid = []
@@ -130,7 +116,7 @@ def get_videos(genre):
                 'plot':data['plot']})
         else:
             # plot
-            req = urllib2.Request(a['data-url'], None, headers)
+            req = urllib2.Request(a['data-url'], None, HEADERS)
             ajax = urllib2.urlopen(req).read()
             p = BeautifulSoup(ajax, 'html.parser', from_encoding='utf-8')
             plot = p.find(class_='f-desc').string
@@ -176,9 +162,8 @@ def list_videos(genre):
 
 def get_links(mid):
     # gather id of each link for each server
-    headers = {'User-Agent': UA}
     url = HOME_PAGE+'/ajax/movie_episodes/'+mid
-    req = urllib2.Request(url, None, headers)
+    req = urllib2.Request(url, None, HEADERS)
     ajax = urllib2.urlopen(req)
     res = json.loads(ajax.read())
     bs = BeautifulSoup(res['html'], 'html.parser')
@@ -210,33 +195,32 @@ def list_links(mid):
 
 def play_video(ids, mid):
     """
-    Play a video by the provided path.
+    Try to play a video of mid id in the set of ids
 
-    :param path: Fully-qualified video URL
-    :type path: str
+    :param ids: List of ids on servers (string)
+    :param mid: Id of the video
     """
-    ids = ids.split(',')
-    headers = {'User-Agent': UA}
+    ids = ids.split(',') # turn it into a list
     play_item = xbmcgui.ListItem()
     for data_id in ids:
         url = HOME_PAGE+'/ajax/movie_token?eid=%s&mid=%s' % (data_id, mid)
-        req = urllib2.Request(url, None, headers)
+        req = urllib2.Request(url, None, HEADERS)
         ajax = urllib2.urlopen(req).read()
         ajax = ajax.replace(', ','&').replace('_','').replace(';','').replace("'", '')
         url = HOME_PAGE+'/ajax/movie_sources/%s?%s' % (data_id, ajax)
         try:
-            req = urllib2.Request(url, None, headers)
+            req = urllib2.Request(url, None, HEADERS)
             ajax = urllib2.urlopen(req).read()
             if ajax == '': continue
             res = json.loads(ajax)
             try:
                 path = res['playlist'][0]['sources'][0]['file']
                 # try to open it
-                req = urllib2.Request(path, None, headers)
+                req = urllib2.Request(path, None, HEADERS)
                 video = urllib2.urlopen(req)
                 video.close()
-                play_item.setPath(path)
                 # Create a playable item with a path to play.
+                play_item.setPath(path)
                 mtype = res['playlist'][0]['sources'][0]['type']
                 if mtype == 'mp4': mtype = 'video/mp4'
                 play_item.setMimeType(mtype)
@@ -245,6 +229,7 @@ def play_video(ids, mid):
                     play_item.setSubtitles([sub])
                 except IndexError:
                     pass
+                # if we're here then all is good. Abort the loop
                 break
             except TypeError:
                 pass
@@ -253,8 +238,9 @@ def play_video(ids, mid):
         except urllib2.HTTPError:
             continue
     data = _cache.get('%s.%s' % (APP_ID, mid))
-    play_item.setInfo('video', {'title': data['name'], 'plot':data['plot']})
-    play_item.setArt({'thumb': data['thumb'], 'fanart':data['fanart'], 'icon': data['thumb']})
+    if data:
+        play_item.setInfo('video', {'title': data['name'], 'plot':data['plot']})
+        play_item.setArt({'thumb': data['thumb'], 'fanart':data['fanart'], 'icon': data['thumb']})
     # Pass the item to the Kodi player.
     xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
 
