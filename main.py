@@ -187,13 +187,13 @@ def list_links(mid):
         list_item.setProperty('IsPlayable', 'true')
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=play&ids=64534%2C65345&mid=21704
-        url = get_url(action='play', ids=','.join(v['ids']), mid=mid)
+        url = get_url(action='play', ids=','.join(v['ids']), mid=mid, name=v['name'])
         is_folder = False
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
-def play_video(ids, mid):
+def play_video(ids, mid, name):
     """
     Try to play a video of mid id in the set of ids
 
@@ -239,7 +239,7 @@ def play_video(ids, mid):
             continue
     data = _cache.get('%s.%s' % (APP_ID, mid))
     if data:
-        play_item.setInfo('video', {'title': data['name'], 'plot':data['plot']})
+        play_item.setInfo('video', {'title': data['name']+' - '+name, 'plot':data['plot']})
         play_item.setArt({'thumb': data['thumb'], 'fanart':data['fanart'], 'icon': data['thumb']})
     # Pass the item to the Kodi player.
     xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
@@ -265,7 +265,7 @@ def router(paramstring):
                 list_links(params['video'])
         elif params['action'] == 'play':
             # Play a video from a provided URL.
-            play_video(params['ids'], params['mid'])
+            play_video(params['ids'], params['mid'], params['name'])
         else:
             # If the provided paramstring does not contain a supported action
             # we raise an exception. This helps to catch coding errors,
