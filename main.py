@@ -13,6 +13,7 @@ import xbmcplugin
 from bs4 import BeautifulSoup
 import json
 import simplecache
+import threading
 
 _cache = simplecache.SimpleCache()
 # Get the plugin url in plugin:// notation.
@@ -78,6 +79,12 @@ def list_genres():
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
+def get_plot(data_url, vid):
+    req = urllib2.Request(data_url, None, HEADERS)
+    ajax = urllib2.urlopen(req).read()
+    p = BeautifulSoup(ajax, 'html.parser', from_encoding='utf-8')
+    vid['plot'] = p.find(class_='f-desc').string
+
 def get_videos(genre):
     """
     Get the list of videofiles/streams.
@@ -104,6 +111,8 @@ def get_videos(genre):
     page = urllib2.urlopen(req).read()
     bs = BeautifulSoup(page, 'html.parser')
     vid = []
+    indx = 0
+    threads = []
     for a in bs.find('div', class_="movies-list movies-list-full").find_all('a'):
         quality = a.find('span', class_='mli-quality')
         thumb  = a.img['data-original']
@@ -115,17 +124,18 @@ def get_videos(genre):
             vid.append({'name':data['name'], 'mid':mid, 'thumb':data['thumb'], 'fanart':data['fanart'],
                 'plot':data['plot']})
         else:
-            # plot
-            req = urllib2.Request(a['data-url'], None, HEADERS)
-            ajax = urllib2.urlopen(req).read()
-            p = BeautifulSoup(ajax, 'html.parser', from_encoding='utf-8')
-            plot = p.find(class_='f-desc').string
-            # cache data
-            data = {'name':name, 'thumb': thumb, 'fanart':thumb.replace('/poster/','/cover/'), 'plot':plot}
-            _cache.set('%s.%s' % (APP_ID, mid), data)
+            vid.append({'name':name, 'mid':mid, 'thumb':thumb, 'fanart':thumb.replace('/poster/','/cover/')})
+            # ajax call for the plot
+            t = threading.Thread(target=get_plot, args=(a['data-url'], vid[indx]))
+            threads.append((t, indx))
+            t.start()
+        indx += 1
 
-            vid.append({'name':name, 'mid':mid, 'thumb':thumb, 'fanart':thumb.replace('/poster/','/cover/'),
-                'plot':plot})
+    for t,i in threads:
+        t.join()
+        # cache data
+        data = {'name':vid[i]['name'], 'thumb': vid[i]['thumb'], 'fanart':vid[i]['fanart'], 'plot':vid[i]['plot']}
+        _cache.set('%s.%s' % (APP_ID, vid[i]['mid']), data)
 
     # next page
     n = bs.find('a', rel='next')
