@@ -220,7 +220,7 @@ def play_video(ids, mid, name):
                 video = urllib2.urlopen(req)
                 video.close()
                 # Create a playable item with a path to play.
-                play_item.setPath(path)
+                play_item.setPath('%s|User-Agent=%s&Referer=%s' % (path, UA, HOME_PAGE))
                 mtype = res['playlist'][0]['sources'][0]['type']
                 if mtype == 'mp4': mtype = 'video/mp4'
                 play_item.setMimeType(mtype)
