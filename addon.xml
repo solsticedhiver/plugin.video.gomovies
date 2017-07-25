@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.gomovies" name="GoMovies" version="0.0.5" provider-name="solsTiCe d'Hiver">
+<addon id="plugin.video.gomovies" name="GoMovies" version="0.0.6" provider-name="solsTiCe d'Hiver">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.beautifulsoup4" version="4.5.3"/>
@@ -19,7 +19,8 @@
     <website>https://github.com/solsticedhiver/plugin.video.gomovies</website>
     <email>solstice.dhiver@gmail.com</email>
     <source>https://github.com/solsticedhiver/plugin.video.gomovies</source>
-    <news>0.0.5 Use a cache
+    <news>0.0.6 Use threads to make ajax call
+0.0.5 Use a cache
 0.0.4 Gather id of link for each server
 0.0.3 Add a plot summary for every video
 0.0.2 List link for each video</news>
