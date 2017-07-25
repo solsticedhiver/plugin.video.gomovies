@@ -221,30 +221,24 @@ def play_video(ids, mid, name):
         try:
             req = urllib2.Request(url, None, HEADERS)
             ajax = urllib2.urlopen(req).read()
-            if ajax == '': continue
             res = json.loads(ajax)
-            try:
-                path = res['playlist'][0]['sources'][0]['file']
-                # try to open it
-                req = urllib2.Request(path, None, HEADERS)
-                video = urllib2.urlopen(req)
-                video.close()
-                # Create a playable item with a path to play.
-                play_item.setPath('%s|User-Agent=%s&Referer=%s' % (path, UA, HOME_PAGE))
-                mtype = res['playlist'][0]['sources'][0]['type']
-                if mtype == 'mp4': mtype = 'video/mp4'
-                play_item.setMimeType(mtype)
-                try:
-                    sub = res['playlist'][0]['tracks'][0]['file']
-                    play_item.setSubtitles([sub])
-                except IndexError:
-                    pass
-                # if we're here then all is good. Abort the loop
-                break
-            except TypeError:
-                pass
-            except IndexError:
-                pass
+            playlist = res['playlist'][0]
+            path = playlist['sources'][0]['file']
+            # try to open it
+            req = urllib2.Request(path, None, HEADERS)
+            video = urllib2.urlopen(req)
+            video.close()
+            # Create a playable item with a path to play.
+            play_item.setPath('%s|User-Agent=%s&Referer=%s' % (path, UA, HOME_PAGE))
+            mtype = playlist['sources'][0]['type']
+            if mtype == 'mp4': mtype = 'video/mp4'
+            play_item.setMimeType(mtype)
+            sub = []
+            for s in playlist['tracks']:
+                sub.append(s['file'])
+            play_item.setSubtitles(sub)
+            # if we're here then all is good. Abort the loop
+            break
         except urllib2.HTTPError:
             continue
     data = _cache.get('%s.%s' % (APP_ID, mid))
