@@ -6,7 +6,7 @@
 
 import sys
 from urllib import urlencode
-import urllib2
+import requests
 from urlparse import parse_qsl
 import xbmcgui
 import xbmcplugin
@@ -44,9 +44,8 @@ def get_genres():
     :return: The list of video genres
     :rtype: list
     """
-    req = urllib2.Request(HOME_PAGE, None, HEADERS)
-    home = urllib2.urlopen(req)
-    bs = BeautifulSoup(home.read(), 'html.parser')
+    home = requests.get(HOME_PAGE, headers=HEADERS)
+    bs = BeautifulSoup(home.text, 'html.parser')
     cat = []
     for a in bs.find_all('a'):
         try:
@@ -80,9 +79,8 @@ def list_genres():
     xbmcplugin.endOfDirectory(_handle)
 
 def get_plot(data_url, vid):
-    req = urllib2.Request(data_url, None, HEADERS)
-    ajax = urllib2.urlopen(req).read()
-    p = BeautifulSoup(ajax, 'html.parser', from_encoding='utf-8')
+    ajax = requests.get(data_url, headers=HEADERS)
+    p = BeautifulSoup(ajax.text, 'html.parser', from_encoding='utf-8')
     vid['plot'] = p.find(class_='f-desc').string
 
 def get_videos(genre):
@@ -107,9 +105,8 @@ def get_videos(genre):
     else:
         url = HOME_PAGE + genre
 
-    req = urllib2.Request(url, None, HEADERS)
-    page = urllib2.urlopen(req).read()
-    bs = BeautifulSoup(page, 'html.parser')
+    page = requests.get(url, headers=HEADERS)
+    bs = BeautifulSoup(page.text, 'html.parser')
     vid = []
     indx = 0
     threads = []
@@ -174,9 +171,8 @@ def list_videos(genre):
 def get_links(mid):
     # gather id of each link for each server
     url = HOME_PAGE+'/ajax/movie_episodes/'+mid
-    req = urllib2.Request(url, None, HEADERS)
-    ajax = urllib2.urlopen(req)
-    res = json.loads(ajax.read())
+    ajax = requests.get(url, headers=HEADERS)
+    res = json.loads(ajax.text)
     bs = BeautifulSoup(res['html'], 'html.parser')
     length = len(bs.find(class_='les-content').find_all('a'))
     videolink = [None]*length
@@ -215,35 +211,31 @@ def play_video(ids, mid, name):
     play_item = xbmcgui.ListItem()
     for data_id in ids:
         url = HOME_PAGE+'/ajax/movie_token?eid=%s&mid=%s' % (data_id, mid)
-        req = urllib2.Request(url, None, HEADERS)
-        ajax = urllib2.urlopen(req).read()
+        ajax = requests.get(url, headers=HEADERS).text
         ajax = ajax.replace(', ','&').replace('_','').replace(';','').replace("'", '')
         url = HOME_PAGE+'/ajax/movie_sources/%s?%s' % (data_id, ajax)
         try:
-            req = urllib2.Request(url, None, HEADERS)
-            ajax = urllib2.urlopen(req).read()
-            if ajax == '': continue
-            res = json.loads(ajax)
-            playlist = res['playlist'][0]
-            if len(playlist['sources']) == 0: continue
-            path = playlist['sources'][0]['file']
-            # try to open it
-            req = urllib2.Request(path, None, HEADERS)
-            video = urllib2.urlopen(req)
-            video.close()
-            # Create a playable item with a path to play.
-            play_item.setPath('%s|User-Agent=%s&Referer=%s' % (path, UA, HOME_PAGE))
-            mtype = playlist['sources'][0]['type']
-            if mtype == 'mp4': mtype = 'video/mp4'
-            play_item.setMimeType(mtype)
-            sub = []
-            for s in playlist['tracks']:
-                sub.append(s['file'])
-            play_item.setSubtitles(sub)
-            # if we're here then all is good. Abort the loop
-            break
-        except urllib2.HTTPError:
+            res = requests.get(url, headers=HEADERS).json()
+        except ValueError:
             continue
+        playlist = res['playlist'][0]
+        if len(playlist['sources']) == 0: continue
+        path = playlist['sources'][0]['file']
+        # try to open it
+        video = requests.head(path, headers=HEADERS)
+        if video.status_code == 302:
+            path = video.headers.get('location')
+        # Create a playable item with a path to play.
+        play_item.setPath('%s|User-Agent=%s&Referer=%s' % (path, UA, HOME_PAGE))
+        mtype = playlist['sources'][0]['type']
+        if mtype == 'mp4': mtype = 'video/mp4'
+        play_item.setMimeType(mtype)
+        sub = []
+        for s in playlist['tracks']:
+            sub.append(s['file'])
+        play_item.setSubtitles(sub)
+        # if we're here then all is good. Abort the loop
+        break
     data = _cache.get('%s.%s' % (APP_ID, mid))
     if data:
         play_item.setInfo('video', {'title': data['name']+' - '+name, 'plot':data['plot']})
