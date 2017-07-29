@@ -23,6 +23,7 @@ _handle = int(sys.argv[1])
 
 APP_ID = 'plugin.video.gomovies'
 HOME_PAGE = 'https://gostream.is'
+PROXIES = {'https':'http://172.82.180.68'}
 UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/59.0.3071.109 Chrome/59.0.3071.109 Safari/537.36'
 HEADERS = {'User-Agent': UA}
 
@@ -44,7 +45,7 @@ def get_genres():
     :return: The list of video genres
     :rtype: list
     """
-    home = requests.get(HOME_PAGE, headers=HEADERS)
+    home = requests.get(HOME_PAGE, headers=HEADERS, proxies=PROXIES)
     bs = BeautifulSoup(home.text, 'html.parser')
     cat = []
     for a in bs.find_all('a'):
@@ -79,7 +80,7 @@ def list_genres():
     xbmcplugin.endOfDirectory(_handle)
 
 def get_plot(data_url, vid):
-    ajax = requests.get(data_url, headers=HEADERS)
+    ajax = requests.get(data_url, headers=HEADERS, proxies=PROXIES)
     p = BeautifulSoup(ajax.text, 'html.parser', from_encoding='utf-8')
     vid['plot'] = p.find(class_='f-desc').string
 
@@ -105,7 +106,7 @@ def get_videos(genre):
     else:
         url = HOME_PAGE + genre
 
-    page = requests.get(url, headers=HEADERS)
+    page = requests.get(url, headers=HEADERS, proxies=PROXIES)
     bs = BeautifulSoup(page.text, 'html.parser')
     vid = []
     indx = 0
@@ -171,7 +172,7 @@ def list_videos(genre):
 def get_links(mid):
     # gather id of each link for each server
     url = HOME_PAGE+'/ajax/movie_episodes/'+mid
-    ajax = requests.get(url, headers=HEADERS)
+    ajax = requests.get(url, headers=HEADERS, proxies=PROXIES)
     res = json.loads(ajax.text)
     bs = BeautifulSoup(res['html'], 'html.parser')
     length = len(bs.find(class_='les-content').find_all('a'))
@@ -211,28 +212,29 @@ def play_video(ids, mid, name):
     play_item = xbmcgui.ListItem()
     for data_id in ids:
         url = HOME_PAGE+'/ajax/movie_token?eid=%s&mid=%s' % (data_id, mid)
-        ajax = requests.get(url, headers=HEADERS).text
+        ajax = requests.get(url, headers=HEADERS, proxies=PROXIES).text
         ajax = ajax.replace(', ','&').replace('_','').replace(';','').replace("'", '')
         url = HOME_PAGE+'/ajax/movie_sources/%s?%s' % (data_id, ajax)
         try:
-            res = requests.get(url, headers=HEADERS).json()
+            res = requests.get(url, headers=HEADERS, proxies=PROXIES).json()
         except ValueError:
             continue
         playlist = res['playlist'][0]
         if len(playlist['sources']) == 0: continue
         path = playlist['sources'][0]['file']
-        # try to open it
+        # try to open it but don't use the proxy here
         video = requests.head(path, headers=HEADERS)
-        if video.status_code == 302:
+        if video.status_code == 302 or video.status_code == 301:
             path = video.headers.get('location')
+            video = requests.head(path, headers=HEADERS)
+        if video.status_code == 403:
+            continue
         # Create a playable item with a path to play.
         play_item.setPath('%s|User-Agent=%s&Referer=%s' % (path, UA, HOME_PAGE))
         mtype = playlist['sources'][0]['type']
         if mtype == 'mp4': mtype = 'video/mp4'
         play_item.setMimeType(mtype)
-        sub = []
-        for s in playlist['tracks']:
-            sub.append(s['file'])
+        sub = [s['file'] for s in playlist['tracks']]
         play_item.setSubtitles(sub)
         # if we're here then all is good. Abort the loop
         break
