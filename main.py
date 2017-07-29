@@ -27,6 +27,9 @@ PROXIES = {'https':'http://172.82.180.68'}
 UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/59.0.3071.109 Chrome/59.0.3071.109 Safari/537.36'
 HEADERS = {'User-Agent': UA}
 
+def use_mirrorr(url):
+    return 'https://argon-tuner-836.appspot.com/%s' % url.replace('://', '_', 1)
+
 def get_url(**kwargs):
     """
     Create a URL for calling the plugin recursively from the given set of keyword arguments.
@@ -113,7 +116,7 @@ def get_videos(genre):
     threads = []
     for a in bs.find('div', class_="movies-list movies-list-full").find_all('a'):
         quality = a.find('span', class_='mli-quality')
-        thumb  = a.img['data-original']
+        thumb  = use_mirrorr(a.img['data-original'])
         mid = a['data-url'].split('/')[-1]
         name = a['title']+' ['+quality.string+']' if quality else a['title']
         # try the cache
@@ -234,7 +237,7 @@ def play_video(ids, mid, name):
         mtype = playlist['sources'][0]['type']
         if mtype == 'mp4': mtype = 'video/mp4'
         play_item.setMimeType(mtype)
-        sub = [s['file'] for s in playlist['tracks']]
+        sub = [use_mirrorr(s['file']) for s in playlist['tracks']]
         play_item.setSubtitles(sub)
         # if we're here then all is good. Abort the loop
         break
