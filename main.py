@@ -21,13 +21,8 @@ _url = sys.argv[0]
 # Get the plugin handle as an integer number.
 _handle = int(sys.argv[1])
 
-PROXY = True
 APP_ID = 'plugin.video.gomovies'
 HOME_PAGE = 'https://gostream.is'
-if PROXY:
-    MIRROR = 'https://argon-tuner-836.appspot.com'
-    PSEUDO_ROOT = '/https_gostream.is'
-    HOME_PAGE = MIRROR+PSEUDO_ROOT
 UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/59.0.3071.109 Chrome/59.0.3071.109 Safari/537.36'
 HEADERS = {'User-Agent': UA}
 
@@ -57,8 +52,6 @@ def get_genres():
         try:
             if '/genre/' in a['href'] and 'title' not in a.attrs:
                 url = a['href'].replace(HOME_PAGE, '')
-                if PROXY:
-                    url = url[len(PSEUDO_ROOT):]
                 cat.append({'name':a.text,'url':url})
         except KeyError:
             pass
@@ -87,8 +80,6 @@ def list_genres():
     xbmcplugin.endOfDirectory(_handle)
 
 def get_plot(data_url, vid):
-    if PROXY:
-        data_url = HOME_PAGE+data_url.replace(PSEUDO_ROOT, '')
     req = urllib2.Request(data_url, None, HEADERS)
     ajax = urllib2.urlopen(req).read()
     p = BeautifulSoup(ajax, 'html.parser', from_encoding='utf-8')
@@ -125,8 +116,6 @@ def get_videos(genre):
     for a in bs.find('div', class_="movies-list movies-list-full").find_all('a'):
         quality = a.find('span', class_='mli-quality')
         thumb  = a.img['data-original']
-        if PROXY:
-            thumb = thumb.replace('https://',MIRROR)
         mid = a['data-url'].split('/')[-1]
         name = a['title']+' ['+quality.string+']' if quality else a['title']
         # try the cache
@@ -152,8 +141,6 @@ def get_videos(genre):
     n = bs.find('a', rel='next')
     if n is not None:
         url = n['href'].replace(HOME_PAGE, '')
-        if PROXY:
-            url = n['href'][len(PSEUDO_ROOT):]
         vid.append({'name':'Next', 'url':url})
     return vid
 
