@@ -27,6 +27,11 @@ PROXIES = {'https':'http://172.82.180.68'}
 UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/59.0.3071.109 Chrome/59.0.3071.109 Safari/537.36'
 HEADERS = {'User-Agent': UA}
 
+# Strategy to avoid Clouflare VPN blacklist:
+# * use a proxy to talk to HOME_PAGE (does not work with mirrorr)
+# * transform urls passed to kodi of thumbnail and cover and subtitle to use mirrorr
+# If not using a VPN blacklisted by Cloudflare, you could disable proxy and mirrorr
+
 def use_mirrorr(url):
     return 'https://argon-tuner-836.appspot.com/%s' % url.replace('://', '_', 1)
 
