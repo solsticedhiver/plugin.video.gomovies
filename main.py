@@ -23,17 +23,8 @@ _handle = int(sys.argv[1])
 
 APP_ID = 'plugin.video.gomovies'
 HOME_PAGE = 'https://gostream.is'
-PROXIES = {'https':'http://172.82.180.68'}
 UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/59.0.3071.109 Chrome/59.0.3071.109 Safari/537.36'
 HEADERS = {'User-Agent': UA}
-
-# Strategy to avoid Clouflare VPN blacklist:
-# * use a proxy to talk to HOME_PAGE (does not work with mirrorr)
-# * transform urls passed to kodi of thumbnail and cover and subtitle to use mirrorr
-# If not using a VPN blacklisted by Cloudflare, you could disable proxy and mirrorr
-
-def use_mirrorr(url):
-    return 'https://argon-tuner-836.appspot.com/%s' % url.replace('://', '_', 1)
 
 def get_url(**kwargs):
     """
@@ -53,7 +44,7 @@ def get_genres():
     :return: The list of video genres
     :rtype: list
     """
-    home = requests.get(HOME_PAGE, headers=HEADERS, proxies=PROXIES)
+    home = requests.get(HOME_PAGE, headers=HEADERS)
     bs = BeautifulSoup(home.text, 'html.parser')
     cat = []
     for a in bs.find_all('a'):
@@ -88,7 +79,7 @@ def list_genres():
     xbmcplugin.endOfDirectory(_handle)
 
 def get_plot(data_url, vid):
-    ajax = requests.get(data_url, headers=HEADERS, proxies=PROXIES)
+    ajax = requests.get(data_url, headers=HEADERS)
     p = BeautifulSoup(ajax.text, 'html.parser', from_encoding='utf-8')
     vid['plot'] = p.find(class_='f-desc').string
 
@@ -114,14 +105,14 @@ def get_videos(genre):
     else:
         url = HOME_PAGE + genre
 
-    page = requests.get(url, headers=HEADERS, proxies=PROXIES)
+    page = requests.get(url, headers=HEADERS)
     bs = BeautifulSoup(page.text, 'html.parser')
     vid = []
     indx = 0
     threads = []
     for a in bs.find('div', class_="movies-list movies-list-full").find_all('a'):
         quality = a.find('span', class_='mli-quality')
-        thumb  = use_mirrorr(a.img['data-original'])
+        thumb  = a.img['data-original']
         mid = a['data-url'].split('/')[-1]
         name = a['title']+' ['+quality.string+']' if quality else a['title']
         # try the cache
@@ -180,7 +171,7 @@ def list_videos(genre):
 def get_links(mid):
     # gather id of each link for each server
     url = HOME_PAGE+'/ajax/movie_episodes/'+mid
-    ajax = requests.get(url, headers=HEADERS, proxies=PROXIES)
+    ajax = requests.get(url, headers=HEADERS)
     res = json.loads(ajax.text)
     bs = BeautifulSoup(res['html'], 'html.parser')
     length = len(bs.find(class_='les-content').find_all('a'))
@@ -220,11 +211,11 @@ def play_video(ids, mid, name):
     play_item = xbmcgui.ListItem()
     for data_id in ids:
         url = HOME_PAGE+'/ajax/movie_token?eid=%s&mid=%s' % (data_id, mid)
-        ajax = requests.get(url, headers=HEADERS, proxies=PROXIES).text
+        ajax = requests.get(url, headers=HEADERS).text
         ajax = ajax.replace(', ','&').replace('_','').replace(';','').replace("'", '')
         url = HOME_PAGE+'/ajax/movie_sources/%s?%s' % (data_id, ajax)
         try:
-            res = requests.get(url, headers=HEADERS, proxies=PROXIES).json()
+            res = requests.get(url, headers=HEADERS).json()
         except ValueError:
             continue
         playlist = res['playlist'][0]
@@ -242,7 +233,7 @@ def play_video(ids, mid, name):
         mtype = playlist['sources'][0]['type']
         if mtype == 'mp4': mtype = 'video/mp4'
         play_item.setMimeType(mtype)
-        sub = [use_mirrorr(s['file']) for s in playlist['tracks']]
+        sub = [s['file'] for s in playlist['tracks']]
         play_item.setSubtitles(sub)
         # if we're here then all is good. Abort the loop
         break
