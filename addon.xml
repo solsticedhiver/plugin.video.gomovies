@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.gomovies" name="GoMovies" version="0.0.7" provider-name="solsTiCe d'Hiver">
+<addon id="plugin.video.gomovies" name="GoMovies" version="0.0.8" provider-name="solsTiCe d'Hiver">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.requests" version="2.12.4"/>
@@ -20,7 +20,8 @@
     <website>https://github.com/solsticedhiver/plugin.video.gomovies</website>
     <email>solstice.dhiver@gmail.com</email>
     <source>https://github.com/solsticedhiver/plugin.video.gomovies</source>
-    <news>0.0.7 Use a proxy and requests library
+    <news>0.0.8 Remove use of proxy
+0.0.7 Use a proxy and requests library
 0.0.6 Use threads to make ajax call
 0.0.5 Use a cache
 0.0.4 Gather id of link for each server
