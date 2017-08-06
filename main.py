@@ -50,7 +50,7 @@ def get_genres():
     for a in bs.find_all('a'):
         try:
             if '/genre/' in a['href'] and 'title' not in a.attrs:
-                url = a['href'].replace(HOME_PAGE, '')
+                url = a['href'].replace('https://gostream.is', '')
                 cat.append({'name':a.text,'url':url})
         except KeyError:
             pass
@@ -181,12 +181,12 @@ def get_links(mid):
     res = json.loads(ajax.text)
     bs = BeautifulSoup(res['html'], 'html.parser')
     length = len(bs.find(class_='les-content').find_all('a'))
-    videolink = [None]*length
+    videolink = {}
     for div in bs.find_all(class_='les-content'):
         for a in div.find_all('a'):
             data_id = a['data-id']
             indx = int(a['data-index'])
-            if videolink[indx] is None:
+            if not indx in videolink:
                 videolink[indx] = {'ids':[]}
             videolink[indx]['name'] = a['title']
             videolink[indx]['ids'].append(data_id)
@@ -194,7 +194,7 @@ def get_links(mid):
 
 def list_links(mid):
     videolink = get_links(mid)
-    for v in videolink:
+    for v in videolink.values():
         list_item = xbmcgui.ListItem(label=v['name'])
         list_item.setInfo('video', {'title': v['name']})
         list_item.setProperty('IsPlayable', 'true')
