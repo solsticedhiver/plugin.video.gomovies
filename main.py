@@ -118,21 +118,24 @@ def get_videos(genre):
         # try the cache
         data = _cache.get('%s.%s' % (APP_ID, mid))
         if data:
-            vid.append({'name':data['name'], 'mid':mid, 'thumb':data['thumb'], 'fanart':data['fanart'],
-                'plot':data['plot']})
+            if 'plot' in data:
+                vid.append({'name':data['name'], 'mid':mid, 'thumb':data['thumb'], 'fanart':data['fanart'],
+                    'plot':data['plot']})
+            else:
+                vid.append({'name':data['name'], 'mid':mid, 'thumb':data['thumb'], 'fanart':data['fanart']})
         else:
             vid.append({'name':name, 'mid':mid, 'thumb':thumb, 'fanart':thumb.replace('/poster/','/cover/')})
             # ajax call for the plot
-            t = threading.Thread(target=get_plot, args=(a['data-url'], vid[indx]))
-            threads.append((t, indx))
-            t.start()
+            #t = threading.Thread(target=get_plot, args=(a['data-url'], vid[indx]))
+            #threads.append((t, indx))
+            #t.start()
         indx += 1
 
-    for t,i in threads:
-        t.join()
-        # cache data
-        data = {'name':vid[i]['name'], 'thumb': vid[i]['thumb'], 'fanart':vid[i]['fanart'], 'plot':vid[i]['plot']}
-        _cache.set('%s.%s' % (APP_ID, vid[i]['mid']), data)
+    #for t,i in threads:
+    #    t.join()
+    #    # cache data
+    #    data = {'name':vid[i]['name'], 'thumb': vid[i]['thumb'], 'fanart':vid[i]['fanart'], 'plot':vid[i]['plot']}
+    #    _cache.set('%s.%s' % (APP_ID, vid[i]['mid']), data)
 
     # next page
     n = bs.find('a', rel='next')
@@ -159,7 +162,10 @@ def list_videos(genre):
             list_item.setInfo('video', {'title': video['name']})
             url = get_url(action='listing', genre=video['url'])
         else:
-            list_item.setInfo('video', {'title': video['name'], 'plot':video['plot']})
+            if 'plot' in video:
+                list_item.setInfo('video', {'title': video['name'], 'plot':video['plot']})
+            else:
+                list_item.setInfo('video', {'title': video['name']})
             list_item.setArt({'thumb': video['thumb'], 'fanart':video['fanart'], 'icon': video['thumb']})
             # Create a URL for a plugin recursive call.
             # Example: plugin://plugin.video.example/?action=play&video=21234
